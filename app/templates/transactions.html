@@ -4,60 +4,17 @@
 
 {% block content %}
 <div class="row">
-    <!-- 左側：新增紀錄表單 -->
-    <div class="col-md-4 mb-4">
-        <div class="card sticky-md-top" style="top: 20px;">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">✍️ 新增收支紀錄</h5>
-            </div>
-            <div class="card-body bg-light">
-                <form action="{{ url_for('transaction.create_transaction') }}" method="POST">
-                    <div class="mb-3">
-                        <label for="type" class="form-label fw-bold">收支類型 <span class="text-danger">*</span></label>
-                        <select class="form-select" id="type" name="type" required>
-                            <option value="expense" selected>支出</option>
-                            <option value="income">收入</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="date" class="form-label fw-bold">消費日期 <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="date" name="date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="category_id" class="form-label fw-bold">類別 <span class="text-danger">*</span></label>
-                        <select class="form-select" id="category_id" name="category_id" required>
-                            <option value="">請選擇對應類別...</option>
-                            {% for c in categories %}
-                                <option value="{{ c.id }}" data-type="{{ c.type }}">{{ c.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="amount" class="form-label fw-bold">金額 <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="amount" name="amount" min="0.01" step="any" required placeholder="0">
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label for="note" class="form-label fw-bold">備註 (可選)</label>
-                        <input type="text" class="form-control" id="note" name="note" placeholder="例如：早餐火腿蛋...">
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">送出綁定紀錄</button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- 右側：明細列表 -->
-    <div class="col-md-8">
+    <!-- 明細列表 -->
+    <div class="col-md-12">
         <div class="card">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold">🗓️ 收支列表</h5>
-                <!-- 切換月份清單 -->
-                <form action="{{ url_for('transaction.list_transactions') }}" method="GET" class="d-flex">
-                    <input type="month" class="form-control form-control-sm me-2" name="month" value="{{ current_month }}" onchange="this.form.submit()">
-                </form>
+                <div class="d-flex gap-2">
+                    <!-- 切換月份清單 -->
+                    <form action="{{ url_for('transaction.list_transactions') }}" method="GET" class="d-flex me-2">
+                        <input type="month" class="form-control form-control-sm" name="month" value="{{ current_month }}" onchange="this.form.submit()">
+                    </form>
+                </div>
             </div>
 
             <!-- 月份總結概覽 -->
@@ -91,15 +48,69 @@
                                 </td>
                                 <td><small>{{ t.note }}</small></td>
                                 <td class="text-center">
+                                    <!-- 編輯按鈕 (觸發 Modal) -->
+                                    <button type="button" class="btn btn-sm btn-outline-primary px-2 me-1" data-bs-toggle="modal" data-bs-target="#editModal{{ t.id }}">編輯</button>
+                                    
+                                    <!-- 刪除按鈕 -->
                                     <form action="{{ url_for('transaction.delete_transaction', id=t.id) }}" method="POST" class="d-inline" onsubmit="return confirm('確定要刪除這筆紀錄嗎？');">
                                         <button type="submit" class="btn btn-sm btn-outline-danger px-2">刪除</button>
                                     </form>
+
+                                    <!-- 編輯 Modal -->
+                                    <div class="modal fade text-start" id="editModal{{ t.id }}" tabindex="-1" aria-labelledby="editModalLabel{{ t.id }}" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-light">
+                                                    <h5 class="modal-title fw-bold" id="editModalLabel{{ t.id }}">✏️ 編輯收支紀錄</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form action="{{ url_for('transaction.update_transaction', id=t.id) }}" method="POST">
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">收支類型</label>
+                                                            <select class="form-select" name="type" required>
+                                                                <option value="expense" {% if t.type == 'expense' %}selected{% endif %}>支出</option>
+                                                                <option value="income" {% if t.type == 'income' %}selected{% endif %}>收入</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">消費日期</label>
+                                                            <input type="date" class="form-control" name="date" value="{{ t.date }}" required>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">類別</label>
+                                                            <select class="form-select" name="category_id" required>
+                                                                {% for c in categories %}
+                                                                    <option value="{{ c.id }}" {% if c.id == t.category_id %}selected{% endif %}>{{ c.name }} ({{ '支出' if c.type == 'expense' else '收入' }})</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">金額</label>
+                                                            <div class="input-group">
+                                                                <span class="input-group-text">$</span>
+                                                                <input type="number" class="form-control" name="amount" min="0.01" step="any" value="{{ t.amount }}" required>
+                                                            </div>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">備註</label>
+                                                            <input type="text" class="form-control" name="note" value="{{ t.note }}">
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                                        <button type="submit" class="btn btn-primary">儲存變更</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
                                 <td colspan="5" class="text-center text-muted py-5">
-                                    📋 這個月還沒有任何紀錄喔！快去左邊記上一筆吧！
+                                    📋 這個月還沒有任何紀錄喔！快去新增一筆吧！
                                 </td>
                             </tr>
                             {% endfor %}
@@ -110,48 +121,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-// UI 響應操作：根據「收入/支出」收合清單項目
-document.addEventListener("DOMContentLoaded", function() {
-    const typeSelect = document.getElementById('type');
-    const categorySelect = document.getElementById('category_id');
-    const options = Array.from(categorySelect.options);
-
-    function filterCategories() {
-        const selectedType = typeSelect.value;
-        let firstValidOption = null;
-
-        options.forEach(opt => {
-            if (opt.value === "") return; 
-            
-            if (opt.getAttribute('data-type') === selectedType) {
-                opt.style.display = '';
-                if (!firstValidOption) firstValidOption = opt;
-            } else {
-                opt.style.display = 'none';
-            }
-        });
-
-        // 重構避免選擇到藏起來的項目
-        const currentOpt = categorySelect.options[categorySelect.selectedIndex];
-        if (currentOpt.value !== "" && currentOpt.style.display === 'none') {
-            if (firstValidOption) firstValidOption.selected = true;
-            else categorySelect.value = "";
-        }
-    }
-
-    typeSelect.addEventListener('change', filterCategories);
-    filterCategories(); 
-    
-    // 初始化自填日期為今天
-    const dateInput = document.getElementById('date');
-    if (!dateInput.value) { 
-        const today = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD' formatting safely
-        dateInput.value = today;
-    }
-});
-</script>
 {% endblock %}

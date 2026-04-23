@@ -19,7 +19,7 @@ def init_db():
     print("資料庫初始化完成！")
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
     
     # 基本設定 (實務上可從 os.environ 或 .env 讀取，MVP 暫設 dev 環境)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key')

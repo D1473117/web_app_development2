@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}新增收支紀錄 - 個人記帳簿{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">✍️ 新增收支紀錄</h5>
+                <a href="{{ url_for('transaction.list_transactions') }}" class="btn btn-sm btn-light">返回明細</a>
+            </div>
+            <div class="card-body bg-light">
+                <form action="{{ url_for('transaction.create_transaction') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="type" class="form-label fw-bold">收支類型 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="expense" selected>支出</option>
+                            <option value="income">收入</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date" class="form-label fw-bold">消費日期 <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="date" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category_id" class="form-label fw-bold">類別 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category_id" name="category_id" required>
+                            <option value="">請選擇對應類別...</option>
+                            {% for c in categories %}
+                                <option value="{{ c.id }}" data-type="{{ c.type }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label fw-bold">金額 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="amount" name="amount" min="0.01" step="any" required placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="note" class="form-label fw-bold">備註 (可選)</label>
+                        <input type="text" class="form-control" id="note" name="note" placeholder="例如：早餐火腿蛋...">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">送出綁定紀錄</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// UI 響應操作：根據「收入/支出」收合清單項目
+document.addEventListener("DOMContentLoaded", function() {
+    const typeSelect = document.getElementById('type');
+    const categorySelect = document.getElementById('category_id');
+    const options = Array.from(categorySelect.options);
+
+    function filterCategories() {
+        const selectedType = typeSelect.value;
+        let firstValidOption = null;
+
+        options.forEach(opt => {
+            if (opt.value === "") return; 
+            
+            if (opt.getAttribute('data-type') === selectedType) {
+                opt.style.display = '';
+                if (!firstValidOption) firstValidOption = opt;
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+
+        // 重構避免選擇到藏起來的項目
+        const currentOpt = categorySelect.options[categorySelect.selectedIndex];
+        if (currentOpt.value !== "" && currentOpt.style.display === 'none') {
+            if (firstValidOption) firstValidOption.selected = true;
+            else categorySelect.value = "";
+        }
+    }
+
+    typeSelect.addEventListener('change', filterCategories);
+    filterCategories(); 
+    
+    // 初始化自填日期為今天
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) { 
+        const today = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD' formatting safely
+        dateInput.value = today;
+    }
+});
+</script>
+{% endblock %}

@@ -26,6 +26,18 @@ def list_transactions():
         current_month=month
     )
 
+@transaction_bp.route('/transactions/add', methods=['GET'])
+def add_transaction_page():
+    """
+    HTTP GET '/transactions/add'
+    顯示新增明細表單頁面
+    """
+    categories = Category.get_all()
+    return render_template(
+        'add_transaction.html',
+        categories=categories
+    )
+
 @transaction_bp.route('/transactions', methods=['POST'])
 def create_transaction():
     amount = request.form.get('amount')
