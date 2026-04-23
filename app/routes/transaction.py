@@ -1,4 +1,8 @@
+import datetime
 from flask import Blueprint, request, redirect, url_for, flash, render_template
+from app.models.transaction import Transaction
+from app.models.category import Category
+from app.models.budget import Budget
 
 transaction_bp = Blueprint('transaction', __name__)
 
@@ -6,35 +10,100 @@ transaction_bp = Blueprint('transaction', __name__)
 def list_transactions():
     """
     HTTP GET '/transactions'
-    負責讀取資料庫中某個月（或所有）的收支明細清單與所有的分類選項，
-    並將數列結果傳遞給 transactions.html 以便在表格上渲染與提供下拉選單。
+    讀取明細列表
     """
-    pass
+    month = request.args.get('month')
+    if not month:
+        month = datetime.datetime.now().strftime('%Y-%m')
+        
+    transactions = Transaction.get_all(month=month)
+    categories = Category.get_all()
+    
+    return render_template(
+        'transactions.html',
+        transactions=transactions,
+        categories=categories,
+        current_month=month
+    )
 
 @transaction_bp.route('/transactions', methods=['POST'])
 def create_transaction():
-    """
-    HTTP POST '/transactions'
-    接收來自前端的新增表單資料（包含金額、日期、分類等），驗證必填項後寫入資料庫。
-    接著與當月預算比對，若總額超出則設定警告提醒 (Flash Message)，
-    最後統一重導向回 GET /transactions。
-    """
-    pass
+    amount = request.form.get('amount')
+    category_id = request.form.get('category_id')
+    type_ = request.form.get('type')
+    date_str = request.form.get('date')
+    note = request.form.get('note')
+
+    if not amount or not category_id or not type_ or not date_str:
+        flash("請填寫所有必填欄位 (金額, 類別, 類型, 日期)", "danger")
+        return redirect(url_for('transaction.list_transactions'))
+        
+    try:
+        amount = float(amount)
+        category_id = int(category_id)
+        
+        data = {
+            'amount': amount,
+            'category_id': category_id,
+            'type': type_,
+            'date': date_str,
+            'note': note
+        }
+        
+        tx_id = Transaction.create(data)
+        if tx_id:
+            flash("新增收支紀錄成功！", "success")
+            
+            # --- 預算超支檢查區塊 ---
+            month = date_str[:7]
+            budget = Budget.get_by_month(month=month)
+            if budget and type_ == 'expense':
+                all_tx = Transaction.get_all(month=month)
+                total_expense = sum(t['amount'] for t in all_tx if t['type'] == 'expense')
+                if total_expense >= budget['amount']:
+                    flash(f"⚠️ 提醒：您 {month} 月份支用已經超標（支出 {total_expense} / 預算 {budget['amount']}）！", "warning")
+        else:
+            flash("新增紀錄發生失敗。", "danger")
+            
+    except ValueError:
+        flash("無效的金額或類別傳入格式", "danger")
+        
+    # 重導去對應日期的那個月份列表避免使用者找不到剛新增的項目    
+    return redirect(url_for('transaction.list_transactions', month=date_str[:7] if date_str else None))
 
 @transaction_bp.route('/transactions/<int:id>/edit', methods=['POST'])
 def update_transaction(id):
-    """
-    HTTP POST '/transactions/<id>/edit'
-    接收編輯表單傳入的新數據，針對指定的紀錄 ID 更新資料，
-    完成後重導向。
-    """
-    pass
+    amount = request.form.get('amount')
+    category_id = request.form.get('category_id')
+    type_ = request.form.get('type')
+    date_str = request.form.get('date')
+    note = request.form.get('note')
+    
+    if not amount or not category_id or not type_ or not date_str:
+        flash("欄位不可為空", "danger")
+        return redirect(url_for('transaction.list_transactions'))
+    
+    try:
+         data = {
+            'amount': float(amount),
+            'category_id': int(category_id),
+            'type': type_,
+            'date': date_str,
+            'note': note
+         }
+         if Transaction.update(id, data):
+             flash("紀錄更新成功", "success")
+         else:
+             flash("更新失敗", "danger")
+    except ValueError:
+         flash("資料型態有誤", "danger")
+         
+    return redirect(url_for('transaction.list_transactions'))
 
 @transaction_bp.route('/transactions/<int:id>/delete', methods=['POST'])
 def delete_transaction(id):
-    """
-    HTTP POST '/transactions/<id>/delete'
-    刪除資料庫內符合該 ID 的收支紀錄明細，
-    完成後重導向至清單頁首。
-    """
-    pass
+    if Transaction.delete(id):
+        flash("紀錄已經順利刪除", "success")
+    else:
+        flash("刪除過程失敗", "danger")
+    return redirect(url_for('transaction.list_transactions'))

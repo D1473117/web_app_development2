@@ -3,8 +3,94 @@
 {% block title %}系統設定 - 個人記帳簿{% endblock %}
 
 {% block content %}
-<h1>設定</h1>
-<!-- 實作：當月總支出預算上限設定表單 -->
+<div class="row">
+    <!-- 左側：預算設定區塊 -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0 fw-bold">💰 每月預算超支警示設定</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">請設定本月的總支出上限，每當記一筆花費並導致該月超標時，系統便會顯目的向您發出警告。</p>
+                
+                <form action="{{ url_for('settings.view_settings') }}" method="GET" class="mb-4 d-flex align-items-center bg-light p-2 rounded">
+                    <label class="me-2 fw-bold text-nowrap">套用月份：</label>
+                    <input type="month" name="month" class="form-control" value="{{ current_month }}" onchange="this.form.submit()">
+                </form>
 
-<!-- 實作：自訂分類管理區域（新增/刪除類別清單） -->
+                <form action="{{ url_for('settings.update_budget') }}" method="POST" class="p-3 border rounded border-warning border-opacity-25 bg-warning bg-opacity-10">
+                    <input type="hidden" name="month" value="{{ current_month }}">
+                    <div class="mb-3">
+                        <label for="amount" class="form-label fw-bold">輸入您的 {{ current_month }} 預算上限金額：</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">$</span>
+                            <input type="number" class="form-control border-start-0 ps-0" id="amount" name="amount" min="0" step="any" required 
+                                   value="{{ budget.amount if budget else 0 }}">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100 fw-bold text-dark shadow-sm">💾 點此套用更新當月預算</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右側：自訂收支類別管理 -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0 fw-bold">🏷️ 自訂收支項目分類管理</h5>
+            </div>
+            <div class="card-body">
+                <!-- 自訂分類表單 -->
+                <form action="{{ url_for('settings.create_category') }}" method="POST" class="mb-4 bg-light p-3 rounded border">
+                    <label class="form-label fw-bold">新增自訂記錄類別</label>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-sm-3">
+                            <select name="type" class="form-select" required>
+                                <option value="expense">支出</option>
+                                <option value="income">收入</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <input type="text" name="name" class="form-control" placeholder="輸入名稱 (如: 手機費)" required>
+                        </div>
+                        <div class="col-sm-3">
+                            <button type="submit" class="btn btn-dark w-100">➕ 新增</button>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- 清單展開 -->
+                <h6 class="fw-bold text-danger border-bottom border-danger pb-1 mt-4">🔴 支出類別</h6>
+                <div class="d-flex flex-wrap gap-2 mb-4">
+                    {% for c in expense_cats %}
+                    <div class="badge border border-danger text-danger bg-white px-2 py-2 fs-6 d-flex justify-content-center align-items-center gap-2">
+                        {{ c.name }}
+                        {% if c.is_default == 0 %}
+                        <form action="{{ url_for('settings.delete_category', id=c.id) }}" method="POST" class="m-0 p-0" onsubmit="return confirm('確定要刪除這筆自訂的類別選項嗎？\n(過去紀錄並不會被抹除)');">
+                            <button type="submit" class="btn-close ms-2" style="font-size: 0.5rem;"></button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <h6 class="fw-bold text-success border-bottom border-success pb-1 mt-2">🟢 收入類別</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for c in income_cats %}
+                    <div class="badge border border-success text-success bg-white px-2 py-2 fs-6 d-flex align-items-center gap-2">
+                        {{ c.name }}
+                        {% if c.is_default == 0 %}
+                        <form action="{{ url_for('settings.delete_category', id=c.id) }}" method="POST" class="m-0 p-0" onsubmit="return confirm('確定刪除這筆類別嗎？');">
+                            <button type="submit" class="btn-close ms-2" style="font-size: 0.5rem;"></button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

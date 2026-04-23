@@ -3,8 +3,155 @@
 {% block title %}收支明細 - 個人記帳簿{% endblock %}
 
 {% block content %}
-<h1>收支明細管理</h1>
-<!-- 實作：新增收支表單區域 -->
+<div class="row">
+    <!-- 左側：新增紀錄表單 -->
+    <div class="col-md-4 mb-4">
+        <div class="card sticky-md-top" style="top: 20px;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">✍️ 新增收支紀錄</h5>
+            </div>
+            <div class="card-body bg-light">
+                <form action="{{ url_for('transaction.create_transaction') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="type" class="form-label fw-bold">收支類型 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="expense" selected>支出</option>
+                            <option value="income">收入</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date" class="form-label fw-bold">消費日期 <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="date" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category_id" class="form-label fw-bold">類別 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category_id" name="category_id" required>
+                            <option value="">請選擇對應類別...</option>
+                            {% for c in categories %}
+                                <option value="{{ c.id }}" data-type="{{ c.type }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label fw-bold">金額 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="amount" name="amount" min="0.01" step="any" required placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="note" class="form-label fw-bold">備註 (可選)</label>
+                        <input type="text" class="form-control" id="note" name="note" placeholder="例如：早餐火腿蛋...">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">送出綁定紀錄</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
-<!-- 實作：收支歷史列表與編輯/刪除操作按鈕 -->
+    <!-- 右側：明細列表 -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">🗓️ 收支列表</h5>
+                <!-- 切換月份清單 -->
+                <form action="{{ url_for('transaction.list_transactions') }}" method="GET" class="d-flex">
+                    <input type="month" class="form-control form-control-sm me-2" name="month" value="{{ current_month }}" onchange="this.form.submit()">
+                </form>
+            </div>
+
+            <!-- 月份總結概覽 -->
+            <div class="bg-light px-3 py-2 border-bottom">
+                <small class="text-muted fw-bold">本月目前總支出：<span class="text-danger">${{ "{:,.0f}".format(total_expense|default(0)) }}</span></small>
+            </div>
+            
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">日期</th>
+                                <th>類別分類</th>
+                                <th>金額</th>
+                                <th>備註</th>
+                                <th class="text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in transactions %}
+                            <tr>
+                                <td class="ps-3">{{ t.date }}</td>
+                                <td>
+                                    <span class="badge {% if t.type == 'income' %}bg-success{% else %}bg-danger{% endif %} rounded-pill px-2 py-1">
+                                        {{ t.category_name }}
+                                    </span>
+                                </td>
+                                <td class="{% if t.type == 'income' %}text-success{% else %}text-danger{% endif %} fw-bold fs-6">
+                                    {{ '+' if t.type == 'income' else '-' }}${{ "{:,.0f}".format(t.amount) }}
+                                </td>
+                                <td><small>{{ t.note }}</small></td>
+                                <td class="text-center">
+                                    <form action="{{ url_for('transaction.delete_transaction', id=t.id) }}" method="POST" class="d-inline" onsubmit="return confirm('確定要刪除這筆紀錄嗎？');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger px-2">刪除</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-5">
+                                    📋 這個月還沒有任何紀錄喔！快去左邊記上一筆吧！
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// UI 響應操作：根據「收入/支出」收合清單項目
+document.addEventListener("DOMContentLoaded", function() {
+    const typeSelect = document.getElementById('type');
+    const categorySelect = document.getElementById('category_id');
+    const options = Array.from(categorySelect.options);
+
+    function filterCategories() {
+        const selectedType = typeSelect.value;
+        let firstValidOption = null;
+
+        options.forEach(opt => {
+            if (opt.value === "") return; 
+            
+            if (opt.getAttribute('data-type') === selectedType) {
+                opt.style.display = '';
+                if (!firstValidOption) firstValidOption = opt;
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+
+        // 重構避免選擇到藏起來的項目
+        const currentOpt = categorySelect.options[categorySelect.selectedIndex];
+        if (currentOpt.value !== "" && currentOpt.style.display === 'none') {
+            if (firstValidOption) firstValidOption.selected = true;
+            else categorySelect.value = "";
+        }
+    }
+
+    typeSelect.addEventListener('change', filterCategories);
+    filterCategories(); 
+    
+    // 初始化自填日期為今天
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) { 
+        const today = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD' formatting safely
+        dateInput.value = today;
+    }
+});
+</script>
 {% endblock %}
