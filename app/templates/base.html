@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}個人記帳簿{% endblock %}</title>
+    <!-- 後續實作將在這裡引入所需 CSS、Bootstrap 等 -->
+</head>
+<body>
+    <header>
+        <!-- 共用導覽列元件將實作於此 -->
+    </header>
+
+    <main class="container">
+        <!-- 顯示 Flash 通知區域 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- 個別頁面內容區塊 -->
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 後續實作將在這裡引入所需的 JS 檔案 (如 Chart.js) -->
+</body>
+</html>
